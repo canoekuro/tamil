@@ -104,6 +104,6 @@ with col2:
 
 if st.session_state.show_answer:
     # 回答のフォントもNoto Sans Tamilになるようにする（全体適用していれば不要かも）
-    st.success(f'読み方: **{pronunciation}**')
+    st.success(f'読み: **{pronunciation}**')
 
 st.divider()
