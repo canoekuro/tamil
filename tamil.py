@@ -76,8 +76,23 @@ html, body, [class*="st-"] {
 st.title('タミル文字 読み方練習')
 
 # --- セッション状態管理 ---
+if 'remaining_characters' not in st.session_state:
+    st.session_state.remaining_characters = TAMIL_CHARACTERS.copy()
+    random.shuffle(st.session_state.remaining_characters)
+    st.session_state.used_characters = []
+
 if 'current_char_data' not in st.session_state:
-    st.session_state.current_char_data = random.choice(TAMIL_CHARACTERS)
+    if not st.session_state.remaining_characters: # 全ての文字を使い切った場合
+        st.session_state.remaining_characters = st.session_state.used_characters.copy()
+        random.shuffle(st.session_state.remaining_characters)
+        st.session_state.used_characters = []
+        if not st.session_state.remaining_characters: # 初期リストも空だった場合（念のため）
+            st.session_state.remaining_characters = TAMIL_CHARACTERS.copy()
+            random.shuffle(st.session_state.remaining_characters)
+
+    next_char_tuple = st.session_state.remaining_characters.pop(0)
+    st.session_state.used_characters.append(next_char_tuple)
+    st.session_state.current_char_data = next_char_tuple
     st.session_state.show_answer = False
 
 character, pronunciation = st.session_state.current_char_data
@@ -95,10 +110,24 @@ with col1:
         st.session_state.show_answer = True
 with col2:
     if st.button('次へ', key=f'next_{character}'):
-        new_char_data = random.choice(TAMIL_CHARACTERS)
-        while new_char_data == st.session_state.current_char_data and len(TAMIL_CHARACTERS) > 1:
-             new_char_data = random.choice(TAMIL_CHARACTERS)
-        st.session_state.current_char_data = new_char_data
+        if not st.session_state.remaining_characters: # 全ての文字を使い切った場合
+            st.session_state.remaining_characters = st.session_state.used_characters.copy()
+            random.shuffle(st.session_state.remaining_characters)
+            st.session_state.used_characters = []
+            if not st.session_state.remaining_characters: # 初期リストも空だった場合（念のため）
+                 # この状況は通常発生しないはずだが、安全策としてTAMIL_CHARACTERSから再初期化
+                st.session_state.remaining_characters = TAMIL_CHARACTERS.copy()
+                random.shuffle(st.session_state.remaining_characters)
+
+        if st.session_state.remaining_characters: # まだ残りがある場合
+            next_char_tuple = st.session_state.remaining_characters.pop(0)
+            st.session_state.used_characters.append(next_char_tuple)
+            st.session_state.current_char_data = next_char_tuple
+        else: # 本当にリストが空で、再初期化もできなかった場合（エラーケース）
+            st.error("文字リストを読み込めませんでした。ページを再読み込みしてください。")
+            # current_char_data は変更しない
+            pass
+
         st.session_state.show_answer = False
         st.rerun()
 
