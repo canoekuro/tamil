@@ -64,23 +64,23 @@ TAMIL_WORDS = [
 ]
 
 # --- Helper function to get next item ---
-def _get_next_item(session_state, all_chars):
+def _get_next_item(session_state, all_items):
     if not session_state.remaining_characters:
         if session_state.used_characters:
             # Repopulate from used_characters
             session_state.remaining_characters = session_state.used_characters.copy()
             random.shuffle(session_state.remaining_characters)
             session_state.used_characters = []
-        elif all_chars: # used_characters is empty, but all_chars is available
-            session_state.remaining_characters = all_chars.copy()
+        elif all_items: # used_characters is empty, but all_items is available
+            session_state.remaining_characters = all_items.copy()
             random.shuffle(session_state.remaining_characters)
             session_state.used_characters = []
         else:
-            # No characters in used_characters and no all_chars provided (or all_chars is empty)
+            # No characters in used_characters and no all_items provided (or all_items is empty)
             return None
 
     if not session_state.remaining_characters:
-        # If still empty after trying to repopulate (e.g. all_chars was empty initially)
+        # If still empty after trying to repopulate (e.g. all_items was empty initially)
         return None
 
     next_char_tuple = session_state.remaining_characters.pop(0)
@@ -142,11 +142,11 @@ def initialize_lists():
 
     next_item = _get_next_item(st.session_state, source_list)
     if next_item:
-        st.session_state.current_char_data = next_item
+        st.session_state.current_item_data = next_item
         st.session_state.show_answer = False
     else:
         st.error(f"{st.session_state.quiz_mode}のリストが空です。")
-        st.session_state.current_char_data = (None, "エラー")
+        st.session_state.current_item_data = (None, "エラー")
         st.session_state.show_answer = False
 
 # Check if quiz_mode has changed or if it's the first run for list initialization
@@ -156,11 +156,11 @@ if 'previous_quiz_mode' not in st.session_state:
 elif st.session_state.previous_quiz_mode != st.session_state.quiz_mode:
     st.session_state.previous_quiz_mode = st.session_state.quiz_mode # Update mode
     initialize_lists() # Re-initialize lists and fetch new item
-elif 'current_char_data' not in st.session_state: # Ensure current_char_data is always initialized
+elif 'current_item_data' not in st.session_state: # Ensure current_item_data is always initialized
     initialize_lists()
 
 
-item_text, item_pronunciation = st.session_state.current_char_data if st.session_state.current_char_data else (" ", " ")
+item_text, item_pronunciation = st.session_state.current_item_data
 
 st.divider()
 
@@ -183,11 +183,11 @@ with col2:
         current_list = TAMIL_CHARACTERS if st.session_state.quiz_mode == "文字" else TAMIL_WORDS
         next_item = _get_next_item(st.session_state, current_list)
         if next_item:
-            st.session_state.current_char_data = next_item
+            st.session_state.current_item_data = next_item
             st.session_state.show_answer = False
         else:
             st.error(f"次の{st.session_state.quiz_mode}を取得できませんでした。リストの終端か、リストが空の可能性があります。")
-            # Keep current_char_data or set to an error/empty state
+            # Keep current_item_data or set to an error/empty state
         st.rerun()
 
 if st.session_state.show_answer:
