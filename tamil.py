@@ -51,6 +51,31 @@ TAMIL_CHARACTERS.append(('ஸ்ரீ', 'sri'))
 # --- ここまで文字生成 ---
 
 
+# --- Helper function to get next character ---
+def _get_next_character(session_state, all_chars):
+    if not session_state.remaining_characters:
+        if session_state.used_characters:
+            # Repopulate from used_characters
+            session_state.remaining_characters = session_state.used_characters.copy()
+            random.shuffle(session_state.remaining_characters)
+            session_state.used_characters = []
+        elif all_chars: # used_characters is empty, but all_chars is available
+            session_state.remaining_characters = all_chars.copy()
+            random.shuffle(session_state.remaining_characters)
+            session_state.used_characters = []
+        else:
+            # No characters in used_characters and no all_chars provided (or all_chars is empty)
+            return None
+
+    if not session_state.remaining_characters:
+        # If still empty after trying to repopulate (e.g. all_chars was empty initially)
+        return None
+
+    next_char_tuple = session_state.remaining_characters.pop(0)
+    session_state.used_characters.append(next_char_tuple)
+    return next_char_tuple
+
+
 # --- Streamlit アプリケーション ---
 
 # --- Webフォント (Noto Sans Tamil) を読み込む ---
@@ -82,57 +107,53 @@ if 'remaining_characters' not in st.session_state:
     st.session_state.used_characters = []
 
 if 'current_char_data' not in st.session_state:
-    if not st.session_state.remaining_characters: # 全ての文字を使い切った場合
-        st.session_state.remaining_characters = st.session_state.used_characters.copy()
-        random.shuffle(st.session_state.remaining_characters)
-        st.session_state.used_characters = []
-        if not st.session_state.remaining_characters: # 初期リストも空だった場合（念のため）
-            st.session_state.remaining_characters = TAMIL_CHARACTERS.copy()
-            random.shuffle(st.session_state.remaining_characters)
+    next_char_tuple = _get_next_character(st.session_state, TAMIL_CHARACTERS)
+    if next_char_tuple:
+        st.session_state.current_char_data = next_char_tuple
+        st.session_state.show_answer = False
+    else:
+        # Handle case where no character could be retrieved (e.g., TAMIL_CHARACTERS is empty)
+        st.error("タミル文字のリストが初期状態で空です。")
+        st.session_state.current_char_data = (None, "エラー") # Default to prevent crash
+        st.session_state.show_answer = False # Or True to show the error message if needed
 
-    next_char_tuple = st.session_state.remaining_characters.pop(0)
-    st.session_state.used_characters.append(next_char_tuple)
-    st.session_state.current_char_data = next_char_tuple
-    st.session_state.show_answer = False
-
-character, pronunciation = st.session_state.current_char_data
+character, pronunciation = st.session_state.current_char_data if st.session_state.current_char_data else (" ", " ")
 
 st.divider()
 
 # 1. タミル文字を表示 (CSSクラスを適用)
-st.markdown(f"<div class='tamil-char-display'>{character}</div>", unsafe_allow_html=True)
+# Ensure character is not None before trying to display it
+if character:
+    st.markdown(f"<div class='tamil-char-display'>{character}</div>", unsafe_allow_html=True)
+else:
+    st.markdown(f"<div class='tamil-char-display'> </div>", unsafe_allow_html=True) # Show empty space
+    st.warning("表示する文字がありません。")
 
 
 # --- ボタンと回答表示 ---
 col1, col2 = st.columns(2)
 with col1:
-    if st.button('回答を見る', key=f'show_{character}'):
+    if st.button('回答を見る', key=f'show_{character if character else "no_char_show"}'): # Handle None character
         st.session_state.show_answer = True
 with col2:
-    if st.button('次へ', key=f'next_{character}'):
-        if not st.session_state.remaining_characters: # 全ての文字を使い切った場合
-            st.session_state.remaining_characters = st.session_state.used_characters.copy()
-            random.shuffle(st.session_state.remaining_characters)
-            st.session_state.used_characters = []
-            if not st.session_state.remaining_characters: # 初期リストも空だった場合（念のため）
-                 # この状況は通常発生しないはずだが、安全策としてTAMIL_CHARACTERSから再初期化
-                st.session_state.remaining_characters = TAMIL_CHARACTERS.copy()
-                random.shuffle(st.session_state.remaining_characters)
-
-        if st.session_state.remaining_characters: # まだ残りがある場合
-            next_char_tuple = st.session_state.remaining_characters.pop(0)
-            st.session_state.used_characters.append(next_char_tuple)
+    if st.button('次へ', key=f'next_{character if character else "no_char_next"}'): # Handle None character
+        next_char_tuple = _get_next_character(st.session_state, TAMIL_CHARACTERS)
+        if next_char_tuple:
             st.session_state.current_char_data = next_char_tuple
-        else: # 本当にリストが空で、再初期化もできなかった場合（エラーケース）
-            st.error("文字リストを読み込めませんでした。ページを再読み込みしてください。")
-            # current_char_data は変更しない
-            pass
+        else:
+            # This case implies TAMIL_CHARACTERS might be empty or an issue in _get_next_character
+            st.error("次の文字を取得できませんでした。リストの終端か、リストが空の可能性があります。")
+            # Optionally, try to reset or display a message
+            # For now, keep current_char_data as is or set to an error state if desired
+            # st.session_state.current_char_data = (None, "エラー") # Avoid if causes reruns issues
 
         st.session_state.show_answer = False
         st.rerun()
 
 if st.session_state.show_answer:
     # 回答のフォントもNoto Sans Tamilになるようにする（全体適用していれば不要かも）
-    st.success(f'読み: **{pronunciation}**')
+    if character: # Only show pronunciation if there's a character
+        st.success(f'読み: **{pronunciation}**')
+    # else: it might show "読み: エラー" or "読み:  " depending on default, or hide it
 
 st.divider()
